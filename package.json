@@ -2,24 +2,25 @@
   "name": "Thingamagic",
   "version": "0.0.1",
   "license": "MIT",
-  "repository" :
-  { 
-	"type" : "git",
-	"url" : "http://github.com/totopouet/Thingamagic.git"
+  "repository": {
+    "type": "git",
+    "url": "http://github.com/totopouet/Thingamagic.git"
   },
   "directories": {
-	"lib": "./lib",
-	"example": "./example"
-	},
+    "lib": "./lib",
+    "example": "./example"
+  },
   "devDependencies": {
-	"jasmine-node":"",
-	"browserify":"",
-	"github":""
-  }, 
-  "scripts":
-  { "test": "jasmine-node test/specs/",
-    "postinstall" : "browserify index.js > bundle.js"
+    "jasmine-node": "",
+    "browserify": "",
+    "github": ""
+  },
+  "scripts": {
+    "test": "jasmine-node test/specs/",
+    "postinstall": "browserify index.js > bundle.js"
+  },
+  "dependencies": {
+    "q": "~0.9.6",
+    "semver": "~2.0.11"
   }
-	
-  
 }
