@@ -1,34 +1,39 @@
-/*var argv = require('optimist')
-    .usage('Usage: $0 -x [num] -y [num]')
-    .demand(['x','y'])
+var argv = require('optimist')
+    .usage('Usage: $0 --repo --out --authtoken -v')
+	.default({ out : "changelog.md", v:1})
+    .demand(['repo'])
     .argv;
-*/
+
 var GitHubApi = require("github");
-
-var github = new GitHubApi({
-   // required
-   version: "3.0.0",
-   // optional
-   timeout: 5000
-});
-
-github.authenticate({
-   type: "basic",
-   username: "",
-   password: ""
-});
-
-
-/*
-process.argv.forEach(function (val, index, array) {
-  console.log(index + ': ' + val);
-});
-*/
-
-var userName = "kaosat-dev";
-var repoName = "coffeescad";
 var Q = require("q");
+var url = require("url");
 
+
+if( argv.repo.indexOf("/") == -1)
+{
+	console.log("full repo name needed : ie either <userName>/<repoName> or https://github.com/<userName>/<repoName>");
+	return;
+}
+
+var fullRepoName = url.parse(argv.repo).path;
+fullRepoName = fullRepoName.charAt(0) == '/' ? fullRepoName.slice(1) : fullRepoName;
+fullRepoName = fullRepoName.split("/")
+
+var userName = fullRepoName[0];//"kaosat-dev";
+var repoName = fullRepoName[1];//"coffeescad";
+var outputFileName = argv.out;
+var verbosity = argv.v;
+var github = new GitHubApi({version: "3.0.0",timeout: 10000 });
+
+
+/*----------------------------RUN----------------*/
+console.log("===Generating changelog for",userName+"/"+repoName, "to", outputFileName+"===");
+//Setup
+init();
+//Running it !
+getTags().then(getIssuesInTimeFrame).then(generateChangeLog).catch(handleError);
+
+/*----------------------------PROCESS/ALGO----------------*/
 /* for each TAG (starting from +1)
 	get date of previous TAG
 	get date of current TAG 
@@ -36,18 +41,32 @@ var Q = require("q");
 	getIssuesFromDateToDate
 */
 
+/*----------------------------STEPS----------------*/
+
+function init()
+{
+	github.authenticate({
+	   type: "basic",
+	   username: "kaosat-dev",
+	   password: ""
+	});
+}
+
 //STEP 1
 function getTags()
 {
 	/*retrieve all tags, then get their commit dates*/
-
+	if (verbosity > 1)
+	{
+		console.log("   Started Fetching tags data");
+	}
 	var tagsDeferred = Q.defer();
 	var tags = [];
 
 	d1 =  Q.nfcall(github.repos.getTags,{user:userName, repo: repoName, per_page:100})
 	d1.then(parseResults).then(function(){
 	tagsDeferred.resolve(tags);
-	});
+	}).catch(handleError);
 
 	function parseResults(results)
 	{
@@ -59,7 +78,10 @@ function getTags()
 			var tag = {name:tagData.name, sha:tagData.commit.sha};
 			tags.push(tag);
 		}
-
+		if (verbosity > 1)
+		{
+			console.log("     Found",tags.length,"tags");
+		}
 		var promises=[];
 		tags.forEach(function(tag)
 		{
@@ -72,12 +94,13 @@ function getTags()
 	function getTagDateBla(tag)
 	{
 		var deferred = Q.defer();
-		github.gitdata.getCommit({user:userName, repo: repoName, sha:tag.sha}, function(err,commit)
+		github.gitdata.getCommit({user:userName, repo: repoName, sha:tag.sha}, function(error,commit)
 		{
-			if(err !== null)
+			if(error !== null)
 			{
-				console.log("error getting tag date", err);
+				console.log("error getting tag date", error);
 				deferred.reject(error);
+				return;
 			}
 			var date = commit.committer.date;
 			tag.date = date;
@@ -85,33 +108,25 @@ function getTags()
 		});
 		return deferred;
 	}
-	return tagsDeferred.promise;
 	
-	/*github.repos.getTags({user:userName, repo: repoName, per_page:100}, function(err,res){
-
-		if(err !== null)
+	function logStepEnd()
+	{
+		if (verbosity > 1)
 		{
-			console.log("error", err);
-			return;
+			console.log("   Finished Fetching tags data");
 		}
-		else
-		{
-			var tags = [];
-			for(var i=0;i<res.length;i++)
-			{
-				var tagData = res[i];	
-				var sha = tagData.commit.sha;
-				var name = tagData.name;
-				var tag = {name:tagData.name, sha:tagData.commit.sha}
-				Q.fcall(getTagDate, sha, tag); //getTagDate(sha, tag);
-			}
-		}
-	});*/
+	}
+	tagsDeferred.promise.then(logStepEnd);
+	return tagsDeferred.promise;
 }
 
 //STEP 2
 function getIssuesInTimeFrame(tags)
 {
+	if (verbosity > 1)
+	{
+		console.log("   Started getting issues in tag timeframes");
+	}
 	/*retrieve issues in timeframes, generally between two tags*/
 	var issuesPerTimeFrameDeferred = Q.defer();
 	var startDate = "2010-12-02T23:11:24Z";//"1950-01-01T00:00:00Z";
@@ -120,26 +135,10 @@ function getIssuesInTimeFrame(tags)
 
 	getAllIssues().then(structureInTimeFrame);
 
-	/*
-	var promises = []
-	tags.sort(compareTags);
-
-	for(var i=0;i<tags.length;i++)
-	{
-		var tag = tags[i];
-		endDate = tag.date;
-		//process issues in timeframe
-		deferred = getAllIssues();
-		promises.push(deferred.promise)
-		startDate = tag.date;
-	}
-
-	Q.all(promises).then(structureInTimeFrame);*/
-	
 	function structureInTimeFrame(issues)
 	{
 
-		//console.log("issues", JSON.stringify(issues));
+		//, JSON.stringify(issues));
 		tags.sort(compareTags);
 
 		tags.forEach(function(tag)
@@ -151,7 +150,6 @@ function getIssuesInTimeFrame(tags)
 			//prepare next tag
 			startDate = tag.date;
 		});
-
 		issuesPerTimeFrameDeferred.resolve(tags);
 	}
 
@@ -174,7 +172,6 @@ function getIssuesInTimeFrame(tags)
 				//console.log("issue", issue.number,"ok bounds");
 				tag.items.push(issue);
 			}
-
 			if (closedDate >= eDate)
 			{
 				//console.log("issue", issue.number,"outside bounds");
@@ -191,6 +188,7 @@ function getIssuesInTimeFrame(tags)
 			{
 				console.log("error", err);
 				defered.reject(error);
+				return;
 			}
 			
 			var issues = [];
@@ -199,8 +197,8 @@ function getIssuesInTimeFrame(tags)
 			for(var i=0;i<res.length;i++)
 			{
 				var issueData = res[i];
-				//IMPORTANT : cannot use issue.closed_at : unreliable timestamp !!
-				console.log("issue", issueData.number, "original closed at", issueData.closed_at);
+				//IMPORTANT : cannot use issue.closed_at : unreliable timestamp , hence double check via commit's date (if issue was closed that way)!!
+				//console.log("issue", issueData.number, "original closed at", issueData.closed_at);
 				var issue = {title:issueData.title,closed_at:issueData.closed_at, number:issueData.number};
 				issues.push(issue);
 
@@ -208,61 +206,27 @@ function getIssuesInTimeFrame(tags)
 				issueEventsPromises.push(subDeferred.promise);
 			}
 			Q.all(issueEventsPromises).then(function(){
+
+				if (verbosity > 1)
+				{
+					console.log("     Found",issues.length,"issues");
+				}
+
 				deferred.resolve(issues)
 			});
 		});
 		return deferred.promise;
 	}
 
-
-	function getIssuesFromDateToDate(startDate, endDate, tag)
+	function logStepEnd()
 	{
-		console.log("proccessing issues between", startDate, endDate, "for tag", tag.name);
-		var eDate = new Date(endDate);
-
-		var deferred = Q.defer();
-		github.issues.repoIssues({user:userName, repo: repoName,state:"closed",direction:"asc", sort:"updated",since:startDate}, function(err,res){
-			if(err !== null)
-			{
-				console.log("error", err);
-				defered.reject(error);
-			}
-			var issuesInTimeFrame = [];
-			var issueEventsPromises = [];
-
-			for(var i=0;i<res.length;i++)
-			{
-				var issueData = res[i];
-				//console.log("bla", JSON.stringify(issueData));
-				//IMPORTANT : cannot use issue.closed_at : unreliable timestamp !!
-				var issue = {title:issueData.title, number:issueData.number};
-				var closedDate = new Date(issue.closed_at);
-
-				console.log(issue.title,"closed on", closedDate ,"tag date", eDate, tag.name,tag.sha);
-				if (closedDate > eDate)
-				{
-					var sDate = new Date(startDate);
-					console.log("outside bounds");
-					break;
-				}
-				
-				issuesInTimeFrame.push(issue);
-
-				var subDeferred = getIssueEvents(issue);
-				issueEventsPromises.push(subDeferred.promise);
-				//
-				//closedDate > eD ? break;
-			}
-
-			tag.items = issuesInTimeFrame;
-
-			Q.all(issueEventsPromises).then(function(){
-				deferred.resolve(issuesInTimeFrame)
-			});
-			
-		});
-		return deferred.promise;
+		if (verbosity > 1)
+		{
+			console.log("   Finished  getting issues in tag timeframes");
+		}
 	}
+	issuesPerTimeFrameDeferred.promise.then(logStepEnd);
+
 	return issuesPerTimeFrameDeferred.promise;
 }
 
@@ -270,19 +234,36 @@ function getIssuesInTimeFrame(tags)
 //STEP3
 function generateChangeLog(tags)
 {
+	if (verbosity > 1)
+	{
+		console.log("   Started generating changelog file");
+	}
+	var fs = require("fs");
+
+	outputFileHandler = fs.openSync(outputFileName, 'w');
 	tags.forEach(function(tag)
 	{
-		console.log(formatTag(tag));
+		//console.log(formatTag(tag));
+		
+		fs.writeSync(outputFileHandler, formatTag(tag)+"\n")
 		//console.log("tag items", tag.items.length);
 		tag.items.forEach(function(item)
 		{
 			item = formatIssue(item);
-			console.log("   -", item.status, item.title);
+			//console.log("   -", item.status, item.title);
+			fs.writeSync(outputFileHandler, "   - "+item.status+" "+item.title+"\n")
 		});
-		console.log(" ");
+		//console.log(" ");
+		fs.writeSync(outputFileHandler, "\n")
 		//console.log("issue :" , issue.number, " ", issue.title, " ",issue.state, " closed at ",issue.closed_at);
 	});
 
+	if (verbosity > 1)
+	{
+		console.log("   Finished generating changelog file");
+	}
+
+	fs.closeSync(outputFileHandler);
 }
 
 /*----------------------------HELPERS----------------*/
@@ -304,7 +285,7 @@ function formatIssue(issue)
 {
 	//clean up text
 	issue.title = issue.title.replace("fixed", "").replace("Fix", "").replace("fix","").replace(/^\s*/g, "");
-	issue.title = issue.title.charAt(0).toLowerCase()+ issue.title.slice(1);;
+	issue.title = issue.title.charAt(0).toLowerCase()+ issue.title.slice(1);
 
 	if(!("status" in issue) )
 	{
@@ -316,7 +297,7 @@ function formatIssue(issue)
 
 function formatTag(tag)
 {
-	var tagFormated = repoName+":"+tag.name+"\n"+"==============="
+	var tagFormated = repoName+": "+tag.name+"\n"+Array(repoName.length + tag.name.length+3).join("=")
 	//console.log(repoName, ":", name, " ", sha);//JSON.stringify(res)); 
 	return(tagFormated);
 }
@@ -331,9 +312,9 @@ function getIssueEvents(issue)
 		{
 			console.log("error getting issue events", err);
 			deferred.reject(err);
+			return
 		}
 		var issueEventsPromises = [];		
-
 		for(var i=0;i<res.length;i++)
 		{
 			var event = res[i];
@@ -376,7 +357,7 @@ function getCloseFixedDetails(commitSha, issue)
 		var message = commit.message;
 		issue.closed_at = commit.committer.date;
 		//console.log("commit", message, "when:", commit.committer.date);
-		console.log("issue", issue.number, "final closed at", new Date(commit.committer.date));
+		//console.log("issue", issue.number, "final closed at", new Date(commit.committer.date));
 
 		if( message.indexOf("fixes") !== -1)
 		{
@@ -396,14 +377,9 @@ function getCloseFixedDetails(commitSha, issue)
 	return deferred;
 }
 
+function handleError(error)
+{
+	console.log("AutoChangeLog failed because of error:", err);
+}
 
-getTags().then(getIssuesInTimeFrame).then(generateChangeLog);
 
-/*
-getTags().then(getIssuesInTimeFrame).then(function(tags){
-	tags.forEach(function(tag)
-	{
-		console.log("Tag: ",tag.name, tag.items);
-	});
-	
-});*/
