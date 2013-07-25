@@ -22,6 +22,7 @@
   "dependencies": {
     "q": "~0.9.6",
     "semver": "~2.0.11",
-    "optimist": "~0.6.0"
+    "optimist": "~0.6.0",
+    "prompt": "~0.2.11"
   }
 }

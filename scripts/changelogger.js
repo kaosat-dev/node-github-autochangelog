@@ -1,5 +1,5 @@
 var argv = require('optimist')
-    .usage('Usage: $0 --repo --out --authtoken -v')
+    .usage('Usage: $0 --repo --out -v')
 	.default({ out : "changelog.md", v:1})
     .demand(['repo'])
     .argv;
@@ -7,7 +7,7 @@ var argv = require('optimist')
 var GitHubApi = require("github");
 var Q = require("q");
 var url = require("url");
-
+var prompt = require('prompt');
 
 if( argv.repo.indexOf("/") == -1)
 {
@@ -19,19 +19,19 @@ var fullRepoName = url.parse(argv.repo).path;
 fullRepoName = fullRepoName.charAt(0) == '/' ? fullRepoName.slice(1) : fullRepoName;
 fullRepoName = fullRepoName.split("/")
 
-var userName = fullRepoName[0];//"kaosat-dev";
-var repoName = fullRepoName[1];//"coffeescad";
+var userName = fullRepoName[0];
+var repoName = fullRepoName[1];
 var outputFileName = argv.out;
 var verbosity = argv.v;
+var login = null;
+var password = null;
+
 var github = new GitHubApi({version: "3.0.0",timeout: 10000 });
 
 
 /*----------------------------RUN----------------*/
-console.log("===Generating changelog for",userName+"/"+repoName, "to", outputFileName+"===");
-//Setup
-init();
 //Running it !
-getTags().then(getIssuesInTimeFrame).then(generateChangeLog).catch(handleError);
+init().then(getTags).then(getIssuesInTimeFrame).then(generateChangeLog).fail(handleError);
 
 /*----------------------------PROCESS/ALGO----------------*/
 /* for each TAG (starting from +1)
@@ -45,11 +45,31 @@ getTags().then(getIssuesInTimeFrame).then(generateChangeLog).catch(handleError);
 
 function init()
 {
-	github.authenticate({
-	   type: "basic",
-	   username: "kaosat-dev",
-	   password: ""
-	});
+	var initDeferred = Q.defer();
+	
+	console.log("===Please enter github login/password (needed because of rate limits on the api without authorization===");
+
+	prompt.message = "";
+  	prompt.delimiter = "-".green;
+
+	prompt.start();
+	prompt.get([{name: 'username',required: true}, {name: 'password',hidden: true,conform: function (value) {return true;}
+    }], function (err, result)
+	{
+		if(err !== null)
+		{
+			initDeferred.reject(err);
+			return;
+		}
+		github.authenticate({
+		   type: "basic",
+		   username: result.username,
+		   password: result.password
+		});
+		console.log("===Generating changelog for",userName+"/"+repoName, "to", outputFileName+"===");
+		initDeferred.resolve();
+  	});
+	return initDeferred.promise;
 }
 
 //STEP 1
@@ -66,7 +86,7 @@ function getTags()
 	d1 =  Q.nfcall(github.repos.getTags,{user:userName, repo: repoName, per_page:100})
 	d1.then(parseResults).then(function(){
 	tagsDeferred.resolve(tags);
-	}).catch(handleError);
+	}).fail(handleError);
 
 	function parseResults(results)
 	{
@@ -100,6 +120,7 @@ function getTags()
 			{
 				console.log("error getting tag date", error);
 				deferred.reject(error);
+				throw(err);
 				return;
 			}
 			var date = commit.committer.date;
@@ -311,32 +332,34 @@ function getIssueEvents(issue)
 		if(err !== null)
 		{
 			console.log("error getting issue events", err);
-			deferred.reject(err);
-			return
+			deferred.reject(new Error("error "+err.message+" code"+err.code));
+			//throw(new Error("error "+err.message+" code"+err.code));
 		}
-		var issueEventsPromises = [];		
-		for(var i=0;i<res.length;i++)
+		else
 		{
-			var event = res[i];
-			if(event.event == "closed")
+			var issueEventsPromises = [];		
+			for(var i=0;i<res.length;i++)
 			{
-				if (event.commit_id !== null)
+				var event = res[i];
+				if(event.event == "closed")
 				{
-					var sha = event.commit_id;
-					//console.log("close event commit_id", event.commit_id);
-					var subDeferred = getCloseFixedDetails(sha, issue);
-					issueEventsPromises.push(subDeferred.promise);
-				}
-				else
-				{
-					//formatIssue(issue);
+					if (event.commit_id !== null)
+					{
+						var sha = event.commit_id;
+						//console.log("close event commit_id", event.commit_id);
+						var subDeferred = getCloseFixedDetails(sha, issue);
+						issueEventsPromises.push(subDeferred.promise);
+					}
+					else
+					{
+						//formatIssue(issue);
+					}
 				}
 			}
+			Q.all(issueEventsPromises).then(function(){
+					deferred.resolve()
+			});
 		}
-		
-		Q.all(issueEventsPromises).then(function(){
-				deferred.resolve()
-		});
 
 		//deferred.resolve();
 	});
@@ -351,35 +374,63 @@ function getCloseFixedDetails(commitSha, issue)
 		if(err !== null)
 		{
 			console.log("error getting closed and fixed details", err);
-			deferred.reject(err);
-		}
-		var commit = res;
-		var message = commit.message;
-		issue.closed_at = commit.committer.date;
-		//console.log("commit", message, "when:", commit.committer.date);
-		//console.log("issue", issue.number, "final closed at", new Date(commit.committer.date));
-
-		if( message.indexOf("fixes") !== -1)
-		{
-			issue.status = "Fixed:";
-		}
-		else if( message.indexOf("closes") !== -1)
-		{
-			issue.status = "Done:";
+			deferred.reject(new Error("error "+err.message+" code"+err.code));
+			//throw(new Error("error "+err.message+" code"+err.code));
 		}
 		else
 		{
-			issue.status = "Done:";
+			var commit = res;
+			var message = commit.message;
+			issue.closed_at = commit.committer.date;
+			//console.log("commit", message, "when:", commit.committer.date);
+			//console.log("issue", issue.number, "final closed at", new Date(commit.committer.date));
+
+			if( message.indexOf("fixes") !== -1)
+			{
+				issue.status = "Fixed:";
+			}
+			else if( message.indexOf("closes") !== -1)
+			{
+				issue.status = "Done:";
+			}
+			else
+			{
+				issue.status = "Done:";
+			}
+			issue = formatIssue(issue);
+			deferred.resolve(issue);
 		}
-		issue = formatIssue(issue);
-		deferred.resolve(issue);
 	});
 	return deferred;
 }
 
+function retry(f) {
+	//from https://gist.github.com/domenic/2936696
+
+    return f().then(
+        undefined, // pass through success
+        function (err)
+		{
+            if (err instanceof TemporaryNetworkError) 
+			{
+                return retry(f); // recurse
+            }
+            throw err; // rethrow
+        }
+    );
+}
+
+function TemporaryNetworkError() {
+    Error.apply(this, arguments);
+}
+TemporaryNetworkError.prototype = new Error();
+TemporaryNetworkError.prototype.constructor = TemporaryNetworkError;
+TemporaryNetworkError.prototype.name = 'TemporaryNetworkError';
+
+
 function handleError(error)
 {
-	console.log("AutoChangeLog failed because of error:", err);
+	console.log("AutoChangeLog failed because of error:", error);
 }
 
 
