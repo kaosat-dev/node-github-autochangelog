@@ -7,11 +7,10 @@
     "url": "http://github.com/kaosat-dev/node-github-autoChangelog.git"
   },
   "directories": {
-    "bin": "./bin",
+    "bin": "./bin"
   },
   "devDependencies": {
-    "jasmine-node": "",
-    "github": ""
+    "jasmine-node": ""
   },
   "scripts": {
     "test": "jasmine-node test/specs/"
@@ -20,9 +19,11 @@
     "q": "~0.9.6",
     "semver": "~2.0.11",
     "optimist": "~0.6.0",
-    "prompt": "~0.2.11"
+    "prompt": "~0.2.11",
+	"github": ""
   },
-  "bin": {
+  "bin":
+   {
         "ghAutoChangeLog": "bin/autoChangeLog.js"
    }
 }

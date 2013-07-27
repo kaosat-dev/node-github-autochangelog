@@ -1,16 +1,10 @@
 'use strict';
-
-var HelloWorld = require('../../index');
+//TODO add actual tests
+var HelloWorld = require('../../bin/autoChangeLog.js');
 
 describe("HelloWorld", function() {
     it("hello() should say hello when called", function() {
         expect(HelloWorld.sayHello()).toEqual("hi world");
-    });
-});
-
-describe("HelloWorld2", function() {
-    it("hello() should say hello when called", function() {
-        expect(HelloWorld.sayHello()).toEqual("hiyaaa");
     });
 });
 
