@@ -1,6 +1,6 @@
 {
   "name": "github-autoChangelog",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -20,10 +20,9 @@
     "semver": "~2.0.11",
     "optimist": "~0.6.0",
     "prompt": "~0.2.11",
-	"github": ""
+    "github": ""
   },
-  "bin":
-   {
-        "ghAutoChangeLog": "bin/autoChangeLog.js"
-   }
+  "bin": {
+    "ghAutoChangeLog": "bin/autoChangeLog.js"
+  }
 }
