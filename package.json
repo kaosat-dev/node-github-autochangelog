@@ -1,10 +1,10 @@
 {
-  "name": "github-autoChangelog",
+  "name": "github-autochangelog",
   "version": "0.0.2",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "http://github.com/kaosat-dev/node-github-autoChangelog.git"
+    "url": "http://github.com/kaosat-dev/node-github-autochangelog.git"
   },
   "directories": {
     "bin": "./bin"
@@ -23,6 +23,6 @@
     "github": ""
   },
   "bin": {
-    "ghAutoChangeLog": "bin/autoChangeLog.js"
+    "ghchangelog": "bin/autochangelog.js"
   }
 }

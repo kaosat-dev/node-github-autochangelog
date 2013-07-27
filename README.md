@@ -6,21 +6,21 @@ changelog auto generation based on github issues + git version tag deltas
 
   Install with the Node.JS package manager [npm](http://npmjs.org/):
 
-      $ npm install -g github-autoChangelog
+      $ npm install -g github-autochangelog
 
 or
 
   Install via git clone:
 
-      $ git clone git@github.com:kaosat-dev/node-github-autoChangelog.git
-      $ cd node-github-autoChangelog
+      $ git clone git@github.com:kaosat-dev/node-github-autochangelog.git
+      $ cd node-github-autochangelog
       $ npm install -g
 
 ## Example
 
 command line usage :
 
-    ghAutoChangeLog --repo https://github.com/kaosat-dev/DummyRepo --out mychangeLog.md -v 2
+    ghchangelog --repo https://github.com/kaosat-dev/DummyRepo --out mychangeLog.md -v 2
 
 output :
 

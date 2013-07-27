@@ -1,15 +1,15 @@
-ghAutoChangeLog
+ghchangelog
 	--repo : repo name/path ie either <userName>/<repoName> or https://github.com/<userName>/<repoName>
 	--out : path to output file
 	- v verbosity 
 
-ghAutoChangeLog will also prompt your for your github login & password (not stored, obscured password), as Github Api severly limits the number of 
+ghchangelog will also prompt your for your github login & password (not stored, obscured password), as Github Api severly limits the number of 
 requests without autorization.
 
 
 command line usage :
 
-    ghAutoChangeLog --repo https://github.com/kaosat-dev/DummyRepo --out mychangeLog.md -v 2
+    ghchangelog --repo https://github.com/kaosat-dev/DummyRepo --out mychangeLog.md -v 2
 
 output :
 
