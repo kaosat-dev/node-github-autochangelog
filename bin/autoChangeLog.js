@@ -1,3 +1,5 @@
+#!/usr/bin/env node
+
 var argv = require('optimist')
     .usage('Usage: $0 --repo --out -v')
 	.default({ out : "changelog.md", v:1})

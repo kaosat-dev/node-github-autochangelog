@@ -1,28 +1,28 @@
 {
-  "name": "Thingamagic",
+  "name": "github-autoChangelog",
   "version": "0.0.1",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "http://github.com/totopouet/Thingamagic.git"
+    "url": "http://github.com/kaosat-dev/node-github-autoChangelog.git"
   },
   "directories": {
-    "lib": "./lib",
-    "example": "./example"
+    "bin": "./bin",
   },
   "devDependencies": {
     "jasmine-node": "",
-    "browserify": "",
     "github": ""
   },
   "scripts": {
-    "test": "jasmine-node test/specs/",
-    "postinstall": "browserify index.js > bundle.js"
+    "test": "jasmine-node test/specs/"
   },
   "dependencies": {
     "q": "~0.9.6",
     "semver": "~2.0.11",
     "optimist": "~0.6.0",
     "prompt": "~0.2.11"
-  }
+  },
+  "bin": {
+        "ghAutoChangeLog": "bin/autoChangeLog.js"
+   }
 }

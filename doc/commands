@@ -1,3 +1,0 @@
-npm install : install dependencies/ dev dependencies
-npm test : launch (jasmine) tests
-npm pack : create package 
