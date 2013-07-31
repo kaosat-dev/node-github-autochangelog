@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 
 var argv = require('optimist')
-    .usage('Usage: $0 --repo --out -v')
-	.default({ out : "changelog.md", v:1})
+    .usage('Usage: $0 --repo --out --dates -v')
+	.default({ out : "changelog.md", v:1, dates:false})
     .demand(['repo'])
     .argv;
 
@@ -24,9 +24,11 @@ fullRepoName = fullRepoName.split("/")
 var userName = fullRepoName[0];
 var repoName = fullRepoName[1];
 var outputFileName = argv.out;
+var addDates = argv.dates;
 var verbosity = argv.v;
 var login = null;
 var password = null;
+
 
 var github = new GitHubApi({version: "3.0.0",timeout: 10000 });
 
@@ -195,7 +197,7 @@ function getIssuesInTimeFrame(tags)
 				//console.log("issue", issue.number,"ok bounds");
 				tag.items.push(issue);
 			}
-			if (closedDate >= eDate)
+			if (closedDate > eDate)
 			{
 				//console.log("issue", issue.number,"outside bounds");
 				break;
@@ -206,7 +208,7 @@ function getIssuesInTimeFrame(tags)
 	function getAllIssues()
 	{
 		var deferred = Q.defer();
-		github.issues.repoIssues({user:userName, repo: repoName,state:"closed",direction:"asc", sort:"updated"}, function(err,res){
+		github.issues.repoIssues({user:userName, repo: repoName,state:"closed",direction:"asc", sort:"updated", assignee:"none",per_page:100}, function(err,res){
 			if(err !== null)
 			{
 				console.log("error", err);
@@ -297,7 +299,7 @@ function compareTags(t1, t2)
 	var t2Version = semver.clean(t2.name);
   	if (semver.lt(t1Version, t2Version))
      return -1;
-  	if (semver.gt(t1Version, t2Version))
+  	if (semver.gte(t1Version, t2Version))
     	return 1;
   	return 0;
 }
@@ -320,7 +322,21 @@ function formatIssue(issue)
 
 function formatTag(tag)
 {
-	var tagFormated = repoName+": "+tag.name+"\n"+Array(repoName.length + tag.name.length+3).join("=")
+	var tagFormated = repoName+": "+tag.name
+
+	if( addDates  == true)
+	{
+		var date = new Date(tag.date);
+		var curr_date = date.getDate();
+		var curr_month = date.getMonth();
+		curr_month++;
+		var curr_year = date.getFullYear();
+
+		tagFormated += " "+curr_date + "/" + curr_month + "/" + curr_year;
+	}
+
+	tagFormated+= "\n"+Array( tagFormated.length + 1).join("=")
+	
 	//console.log(repoName, ":", name, " ", sha);//JSON.stringify(res)); 
 	return(tagFormated);
 }
